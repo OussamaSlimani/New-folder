@@ -63,7 +63,7 @@
     <div class="sudoku-board" id="sudokuBoard"></div>
 
     <script>
-      const API_BASE = "http://127.0.0.1:5000";
+      const X_O_API = "https://games-embs-challenge-tsyp12.onrender.com/";
       const SUDOKU_API = "https://sudoku-api.vercel.app/api/dosuku";
 
       const boardElement = document.getElementById("board");
@@ -112,7 +112,7 @@
 
       // Start a new game
       async function startGame() {
-        const response = await fetch(`${API_BASE}/start_game`, {
+        const response = await fetch(`${X_O_API}/start_game`, {
           method: "POST",
         });
         const data = await response.json();
@@ -128,7 +128,7 @@
 
       // Make a move
       async function makeMove(position) {
-        const response = await fetch(`${API_BASE}/make_move`, {
+        const response = await fetch(`${X_O_API}/make_move`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
