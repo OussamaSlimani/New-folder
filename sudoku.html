@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Game API Tester</title>
+    <style>
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        grid-template-rows: repeat(3, 100px);
+        gap: 5px;
+      }
+      .cell {
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #000;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .cell.disabled {
+        pointer-events: none;
+        background-color: #f0f0f0;
+      }
+      .sudoku-board {
+        display: grid;
+        grid-template-columns: repeat(9, 40px);
+        grid-template-rows: repeat(9, 40px);
+        gap: 2px;
+        margin-top: 20px;
+      }
+      .sudoku-cell {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #000;
+        font-size: 18px;
+        text-align: center;
+      }
+      .sudoku-cell input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        text-align: center;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tic-Tac-Toe</h1>
+    <button id="startGame">Start New Game</button>
+    <div id="status"></div>
+    <div class="board" id="board"></div>
+
+    <h1>Sudoku</h1>
+    <button id="startSudoku">Get Sudoku Puzzle</button>
+    <div id="sudokuStatus"></div>
+    <div class="sudoku-board" id="sudokuBoard"></div>
+
+    <script>
+      const API_BASE = "http://127.0.0.1:5000";
+      const SUDOKU_API = "https://sudoku-api.vercel.app/api/dosuku";
+
+      const boardElement = document.getElementById("board");
+      const statusElement = document.getElementById("status");
+      const startGameButton = document.getElementById("startGame");
+
+      const sudokuBoardElement = document.getElementById("sudokuBoard");
+      const sudokuStatusElement = document.getElementById("sudokuStatus");
+      const startSudokuButton = document.getElementById("startSudoku");
+
+      let gameState = null;
+
+      // Initialize empty board
+      function initializeBoard() {
+        boardElement.innerHTML = "";
+        for (let i = 0; i < 9; i++) {
+          const cell = document.createElement("div");
+          cell.classList.add("cell");
+          cell.dataset.index = i;
+          cell.addEventListener("click", () => makeMove(i));
+          boardElement.appendChild(cell);
+        }
+      }
+
+      // Update the board UI
+      function updateBoard() {
+        const cells = document.querySelectorAll(".cell");
+        gameState.board.forEach((value, index) => {
+          cells[index].textContent = value;
+          if (value !== "") {
+            cells[index].classList.add("disabled");
+          }
+        });
+      }
+
+      // Update game status
+      function updateStatus() {
+        if (gameState.winner) {
+          statusElement.textContent = `Winner: ${gameState.winner}`;
+        } else if (gameState.draw) {
+          statusElement.textContent = "It's a draw!";
+        } else {
+          statusElement.textContent = `Current Turn: ${gameState.current_turn}`;
+        }
+      }
+
+      // Start a new game
+      async function startGame() {
+        const response = await fetch(`${API_BASE}/start_game`, {
+          method: "POST",
+        });
+        const data = await response.json();
+        gameState = {
+          board: ["", "", "", "", "", "", "", "", ""],
+          current_turn: "X",
+          winner: null,
+          draw: false,
+        };
+        initializeBoard();
+        updateStatus();
+      }
+
+      // Make a move
+      async function makeMove(position) {
+        const response = await fetch(`${API_BASE}/make_move`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ position }),
+        });
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        gameState = data.game;
+        updateBoard();
+        updateStatus();
+      }
+
+      // Initialize Sudoku board
+      function initializeSudokuBoard(puzzle) {
+        sudokuBoardElement.innerHTML = "";
+        puzzle.forEach((row, rowIndex) => {
+          row.forEach((value, colIndex) => {
+            const cell = document.createElement("div");
+            cell.classList.add("sudoku-cell");
+
+            if (value !== 0) {
+              cell.textContent = value;
+            } else {
+              const input = document.createElement("input");
+              input.type = "text";
+              input.maxLength = 1;
+              input.dataset.row = rowIndex;
+              input.dataset.col = colIndex;
+              cell.appendChild(input);
+            }
+
+            sudokuBoardElement.appendChild(cell);
+          });
+        });
+      }
+
+      // Start a new Sudoku puzzle
+      async function startSudoku() {
+        const response = await fetch(SUDOKU_API);
+        const data = await response.json();
+
+        if (data && data.newboard && data.newboard.grids) {
+          const puzzle = data.newboard.grids[0].value;
+          initializeSudokuBoard(puzzle);
+          sudokuStatusElement.textContent = "Sudoku Puzzle Loaded!";
+        } else {
+          sudokuStatusElement.textContent = "Failed to load Sudoku puzzle.";
+        }
+      }
+
+      // Initialize event listeners
+      startGameButton.addEventListener("click", startGame);
+      startSudokuButton.addEventListener("click", startSudoku);
+
+      // Start with an empty board
+      initializeBoard();
+    </script>
+  </body>
+</html>

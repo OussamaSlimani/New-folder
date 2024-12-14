@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tic-Tac-Toe API Tester</title>
+    <style>
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        grid-template-rows: repeat(3, 100px);
+        gap: 5px;
+      }
+      .cell {
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #000;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .cell.disabled {
+        pointer-events: none;
+        background-color: #f0f0f0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Tic-Tac-Toe</h1>
+    <button id="startGame">Start New Game</button>
+    <div id="status"></div>
+    <div class="board" id="board"></div>
+
+    <script>
+      const API_BASE = "http://127.0.0.1:5000";
+
+      const boardElement = document.getElementById("board");
+      const statusElement = document.getElementById("status");
+      const startGameButton = document.getElementById("startGame");
+
+      let gameState = null;
+
+      // Initialize empty board
+      function initializeBoard() {
+        boardElement.innerHTML = "";
+        for (let i = 0; i < 9; i++) {
+          const cell = document.createElement("div");
+          cell.classList.add("cell");
+          cell.dataset.index = i;
+          cell.addEventListener("click", () => makeMove(i));
+          boardElement.appendChild(cell);
+        }
+      }
+
+      // Update the board UI
+      function updateBoard() {
+        const cells = document.querySelectorAll(".cell");
+        gameState.board.forEach((value, index) => {
+          cells[index].textContent = value;
+          if (value !== "") {
+            cells[index].classList.add("disabled");
+          }
+        });
+      }
+
+      // Update game status
+      function updateStatus() {
+        if (gameState.winner) {
+          statusElement.textContent = `Winner: ${gameState.winner}`;
+        } else if (gameState.draw) {
+          statusElement.textContent = "It's a draw!";
+        } else {
+          statusElement.textContent = `Current Turn: ${gameState.current_turn}`;
+        }
+      }
+
+      // Start a new game
+      async function startGame() {
+        const response = await fetch(`${API_BASE}/start_game`, {
+          method: "POST",
+        });
+        const data = await response.json();
+        gameState = {
+          board: ["", "", "", "", "", "", "", "", ""],
+          current_turn: "X",
+          winner: null,
+          draw: false,
+        };
+        initializeBoard();
+        updateStatus();
+      }
+
+      // Make a move
+      async function makeMove(position) {
+        const response = await fetch(`${API_BASE}/make_move`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ position }),
+        });
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        gameState = data.game;
+        updateBoard();
+        updateStatus();
+      }
+
+      // Initialize event listeners
+      startGameButton.addEventListener("click", startGame);
+
+      // Start with an empty board
+      initializeBoard();
+    </script>
+  </body>
+</html>
