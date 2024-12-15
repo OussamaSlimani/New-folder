@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request
-from flask_cors import CORS  # Import Flask-CORS
+from flask_cors import CORS
+import random
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
 # Single game state
 game = {
@@ -25,7 +26,13 @@ def check_winner(board):
     return None
 
 def is_draw(board):
-    return all(cell != "" for cell in board)
+    return all(cell != "" for cell in board) and not check_winner(board)
+
+def computer_move(board):
+    empty_positions = [i for i, cell in enumerate(board) if cell == ""]
+    if empty_positions:
+        return random.choice(empty_positions)
+    return None
 
 # Routes
 @app.route("/start_game", methods=["POST"])
@@ -55,19 +62,35 @@ def make_move():
     if game["board"][position] != "":
         return jsonify({"error": "Position already taken"}), 400
 
-    # Make the move
+    # Player's move
     game["board"][position] = game["current_turn"]
 
-    # Check for winner or draw
+    # Check for winner or draw after player's move
     winner = check_winner(game["board"])
     if winner:
         game["winner"] = winner
     elif is_draw(game["board"]):
         game["draw"] = True
 
-    # Switch turn
+    # Switch turn to computer
     if not game["winner"] and not game["draw"]:
-        game["current_turn"] = "O" if game["current_turn"] == "X" else "X"
+        game["current_turn"] = "O"
+
+        # Computer's move
+        computer_position = computer_move(game["board"])
+        if computer_position is not None:
+            game["board"][computer_position] = "O"
+
+            # Check for winner or draw after computer's move
+            winner = check_winner(game["board"])
+            if winner:
+                game["winner"] = winner
+            elif is_draw(game["board"]):
+                game["draw"] = True
+
+        # Switch turn back to player
+        if not game["winner"] and not game["draw"]:
+            game["current_turn"] = "X"
 
     return jsonify({"game": game})
 
