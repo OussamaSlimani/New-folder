@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask_cors import CORS  # Import Flask-CORS
+
 import random
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Enable CORS for all routes
 
 # Single game state
 game = {
@@ -26,13 +27,13 @@ def check_winner(board):
     return None
 
 def is_draw(board):
-    return all(cell != "" for cell in board) and not check_winner(board)
+    return all(cell != "" for cell in board)
 
-def computer_move(board):
-    empty_positions = [i for i, cell in enumerate(board) if cell == ""]
-    if empty_positions:
-        return random.choice(empty_positions)
-    return None
+def make_computer_move():
+    available_positions = [i for i, cell in enumerate(game["board"]) if cell == ""]
+    if not available_positions:
+        return None
+    return random.choice(available_positions)
 
 # Routes
 @app.route("/start_game", methods=["POST"])
@@ -62,10 +63,10 @@ def make_move():
     if game["board"][position] != "":
         return jsonify({"error": "Position already taken"}), 400
 
-    # Player's move
+    # Make the player's move
     game["board"][position] = game["current_turn"]
 
-    # Check for winner or draw after player's move
+    # Check for winner or draw
     winner = check_winner(game["board"])
     if winner:
         game["winner"] = winner
@@ -76,21 +77,35 @@ def make_move():
     if not game["winner"] and not game["draw"]:
         game["current_turn"] = "O"
 
-        # Computer's move
-        computer_position = computer_move(game["board"])
-        if computer_position is not None:
-            game["board"][computer_position] = "O"
+    return jsonify({"game": game})
 
-            # Check for winner or draw after computer's move
-            winner = check_winner(game["board"])
-            if winner:
-                game["winner"] = winner
-            elif is_draw(game["board"]):
-                game["draw"] = True
+@app.route("/make_computer_move", methods=["POST"])
+def make_computer_move_route():
+    global game
 
-        # Switch turn back to player
-        if not game["winner"] and not game["draw"]:
-            game["current_turn"] = "X"
+    if game["winner"] or game["draw"]:
+        return jsonify({"error": "Game is already over"}), 400
+
+    if game["current_turn"] != "O":
+        return jsonify({"error": "It's not the computer's turn"}), 400
+
+    position = make_computer_move()
+    if position is None:
+        return jsonify({"error": "No moves left"}), 400
+
+    # Make the computer's move
+    game["board"][position] = "O"
+
+    # Check for winner or draw
+    winner = check_winner(game["board"])
+    if winner:
+        game["winner"] = winner
+    elif is_draw(game["board"]):
+        game["draw"] = True
+
+    # Switch turn back to player
+    if not game["winner"] and not game["draw"]:
+        game["current_turn"] = "X"
 
     return jsonify({"game": game})
 

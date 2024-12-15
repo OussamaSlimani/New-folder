@@ -3,13 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tic-Tac-Toe vs Computer</title>
+    <title>Games: Tic-Tac-Toe and Sudoku</title>
     <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        text-align: center;
+      }
       .board {
         display: grid;
         grid-template-columns: repeat(3, 100px);
         grid-template-rows: repeat(3, 100px);
         gap: 5px;
+        justify-content: center;
+        margin: 20px auto;
       }
       .cell {
         width: 100px;
@@ -20,10 +27,45 @@
         border: 1px solid #000;
         font-size: 24px;
         cursor: pointer;
+        background-color: #fff;
       }
       .cell.disabled {
         pointer-events: none;
         background-color: #f0f0f0;
+      }
+      button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      #status {
+        margin-top: 20px;
+        font-size: 18px;
+      }
+      .sudoku-board {
+        display: grid;
+        grid-template-columns: repeat(9, 40px);
+        grid-template-rows: repeat(9, 40px);
+        gap: 2px;
+        margin: 20px auto;
+      }
+      .sudoku-cell {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #000;
+        font-size: 18px;
+        text-align: center;
+      }
+      .sudoku-cell input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        text-align: center;
+        font-size: 16px;
       }
     </style>
   </head>
@@ -33,15 +75,22 @@
     <div id="status"></div>
     <div class="board" id="board"></div>
 
+    <h1>Sudoku</h1>
+    <button id="startSudoku">Get Sudoku Puzzle</button>
+    <div id="sudokuStatus"></div>
+    <div class="sudoku-board" id="sudokuBoard"></div>
+
     <script>
-      const API_URL = "http://localhost:5000";
+      const X_O_API = "https://games-embs-challenge-tsyp12.onrender.com"; // Update with your backend API URL if deployed
+      const SUDOKU_API = "https://sudoku-api.vercel.app/api/dosuku";
+
+      // Tic-Tac-Toe Variables and Functions
       const boardElement = document.getElementById("board");
       const statusElement = document.getElementById("status");
       const startGameButton = document.getElementById("startGame");
 
       let gameState = null;
 
-      // Initialize empty board
       function initializeBoard() {
         boardElement.innerHTML = "";
         for (let i = 0; i < 9; i++) {
@@ -53,7 +102,6 @@
         }
       }
 
-      // Update the board UI
       function updateBoard() {
         const cells = document.querySelectorAll(".cell");
         gameState.board.forEach((value, index) => {
@@ -64,7 +112,6 @@
         });
       }
 
-      // Update game status
       function updateStatus() {
         if (gameState.winner) {
           statusElement.textContent = `Winner: ${gameState.winner}`;
@@ -75,9 +122,8 @@
         }
       }
 
-      // Start a new game
       async function startGame() {
-        const response = await fetch(`${API_URL}/start_game`, {
+        const response = await fetch(`${X_O_API}/start_game`, {
           method: "POST",
         });
         const data = await response.json();
@@ -91,14 +137,8 @@
         updateStatus();
       }
 
-      // Make a move
       async function makeMove(position) {
-        if (gameState.winner || gameState.draw) {
-          alert("Game is already over.");
-          return;
-        }
-
-        const response = await fetch(`${API_URL}/make_move`, {
+        const response = await fetch(`${X_O_API}/make_move`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -113,13 +153,75 @@
         gameState = data.game;
         updateBoard();
         updateStatus();
+
+        if (
+          gameState.current_turn === "O" &&
+          !gameState.winner &&
+          !gameState.draw
+        ) {
+          await makeComputerMove();
+        }
       }
 
-      // Initialize event listeners
-      startGameButton.addEventListener("click", startGame);
+      async function makeComputerMove() {
+        const response = await fetch(`${X_O_API}/make_computer_move`, {
+          method: "POST",
+        });
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+        gameState = data.game;
+        updateBoard();
+        updateStatus();
+      }
 
-      // Start with an empty board
+      startGameButton.addEventListener("click", startGame);
       initializeBoard();
+
+      // Sudoku Variables and Functions
+      const sudokuBoardElement = document.getElementById("sudokuBoard");
+      const sudokuStatusElement = document.getElementById("sudokuStatus");
+      const startSudokuButton = document.getElementById("startSudoku");
+
+      function initializeSudokuBoard(puzzle) {
+        sudokuBoardElement.innerHTML = "";
+        puzzle.forEach((row, rowIndex) => {
+          row.forEach((value, colIndex) => {
+            const cell = document.createElement("div");
+            cell.classList.add("sudoku-cell");
+
+            if (value !== 0) {
+              cell.textContent = value;
+            } else {
+              const input = document.createElement("input");
+              input.type = "text";
+              input.maxLength = 1;
+              input.dataset.row = rowIndex;
+              input.dataset.col = colIndex;
+              cell.appendChild(input);
+            }
+
+            sudokuBoardElement.appendChild(cell);
+          });
+        });
+      }
+
+      async function startSudoku() {
+        const response = await fetch(SUDOKU_API);
+        const data = await response.json();
+
+        if (data && data.newboard && data.newboard.grids) {
+          const puzzle = data.newboard.grids[0].value;
+          initializeSudokuBoard(puzzle);
+          sudokuStatusElement.textContent = "Sudoku Puzzle Loaded!";
+        } else {
+          sudokuStatusElement.textContent = "Failed to load Sudoku puzzle.";
+        }
+      }
+
+      startSudokuButton.addEventListener("click", startSudoku);
     </script>
   </body>
 </html>
